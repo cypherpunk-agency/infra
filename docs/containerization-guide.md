@@ -13,8 +13,20 @@
 ## Image Requirements
 
 - Push to `ghcr.io` with `:prod` tag on main branch
+- **Make the package public** (required for our server to pull it)
 - Expose your app port
 - Health endpoint at `/health` (optional, recommended)
+
+### Making Your Package Public
+
+After your first image push, the package will be private by default. To make it public:
+
+1. Go to your GitHub repo
+2. Click **Packages** (right sidebar)
+3. Click your package name
+4. Click **Package settings** (right sidebar)
+5. Scroll to **Danger Zone**
+6. Click **Change visibility** → Select **Public** → Confirm
 
 ## Add to Your Workflow
 
