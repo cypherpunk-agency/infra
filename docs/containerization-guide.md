@@ -34,7 +34,7 @@ deploy:
     - name: Deploy
       run: |
         gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-          --command="cd /mnt/pd/stack && docker compose pull SERVICE_NAME && docker compose up -d SERVICE_NAME"
+          --command="cd /mnt/pd/stack && sudo docker compose pull SERVICE_NAME && sudo docker compose up -d SERVICE_NAME"
 ```
 
 Replace `SERVICE_NAME` with the name we give you.
