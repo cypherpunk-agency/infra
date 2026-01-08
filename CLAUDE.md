@@ -46,6 +46,23 @@ cd /mnt/pd/stack && docker compose pull && docker compose up -d
 - Per-service sudoers rules restrict each SA to deploy only their service
 - SSH username derived from SA email (e.g., `deploy-opengov-monitor`)
 
+## When to Use Terraform vs SSH
+
+**Use Terraform** (`terraform apply`) for:
+- GCP infrastructure changes (VM size, disk, firewall rules, IAM)
+- Changes to `terraform/main.tf` or `terraform/variables.tf`
+
+**Use SSH** for:
+- Adding/updating services in docker-compose.yml
+- Updating Caddyfile (domains, routes)
+- Deploying static files
+- Creating secrets or data directories
+
+**Update `terraform/startup-script.sh`** when:
+- Adding new patterns that should be set up on fresh VMs
+- The startup script is a template for new VMs, not for updating existing ones
+- Changes to startup-script.sh don't affect the running VM unless you recreate it
+
 ## Key Files
 
 | File | Purpose |
@@ -54,4 +71,6 @@ cd /mnt/pd/stack && docker compose pull && docker compose up -d
 | `terraform/startup-script.sh` | Bootstrap: Docker install, disk mount, deploy script |
 | `docs/adding-services.md` | Onboarding checklist for operators |
 | `docs/containerization-guide.md` | Instructions for external app teams |
+| `docs/static-files.md` | Hosting static HTML/CSS/JS via Caddy |
+| `static/` | Static files served at cypherpunk.agency |
 | `keys/` | Service account keys (gitignored) |

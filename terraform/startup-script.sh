@@ -140,6 +140,7 @@ fi
 echo "Setting up directory structure..."
 mkdir -p "$MOUNT_POINT/stack"
 mkdir -p "$MOUNT_POINT/data"
+mkdir -p "$MOUNT_POINT/data/static"
 mkdir -p "$MOUNT_POINT/secrets"
 
 # -----------------------------------------------------------------------------
@@ -156,8 +157,9 @@ if [ ! -f "$COMPOSE_FILE" ]; then
     admin off
 }
 
-:80 {
-    respond "Hello from Caddy! Server is running." 200
+cypherpunk.agency {
+    root * /static
+    file_server
 }
 EOF
 
@@ -173,6 +175,7 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /mnt/pd/data/static:/static:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:

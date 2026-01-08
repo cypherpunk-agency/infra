@@ -175,3 +175,4 @@ gcloud iam service-accounts keys create keys/deploy-$SERVICE_NAME-key.json \
 # Update their repo secret
 gh secret set GCP_SA_KEY --repo org/repo < keys/deploy-$SERVICE_NAME-key.json
 ```
+
