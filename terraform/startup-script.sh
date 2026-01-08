@@ -30,6 +30,41 @@ else
 fi
 
 # -----------------------------------------------------------------------------
+# 1b. Create deploy script for CI/CD
+# -----------------------------------------------------------------------------
+cat > /usr/local/bin/deploy-service << 'DEPLOYSCRIPT'
+#!/bin/bash
+set -e
+
+SERVICE_NAME="$1"
+STACK_DIR="/mnt/pd/stack"
+
+if [[ -z "$SERVICE_NAME" ]]; then
+    echo "Usage: deploy-service <service-name>"
+    exit 1
+fi
+
+if [[ ! "$SERVICE_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "Error: Invalid service name"
+    exit 1
+fi
+
+if ! grep -q "^  ${SERVICE_NAME}:" "$STACK_DIR/docker-compose.yml"; then
+    echo "Error: Service '$SERVICE_NAME' not found in docker-compose.yml"
+    exit 1
+fi
+
+cd "$STACK_DIR"
+echo "Deploying $SERVICE_NAME..."
+docker compose pull "$SERVICE_NAME"
+docker compose up -d "$SERVICE_NAME"
+echo "Deploy complete: $SERVICE_NAME"
+DEPLOYSCRIPT
+
+chmod 755 /usr/local/bin/deploy-service
+echo "Deploy script installed at /usr/local/bin/deploy-service"
+
+# -----------------------------------------------------------------------------
 # 2. Mount persistent disk at /mnt/pd
 # -----------------------------------------------------------------------------
 MOUNT_POINT="/mnt/pd"

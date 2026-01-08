@@ -92,6 +92,12 @@ sudo nano /mnt/pd/secrets/service-name.env
 sudo chmod 600 /mnt/pd/secrets/service-name.env
 ```
 
+**Grant deploy access** (allows only this service account to deploy only this service):
+```bash
+echo 'deploy-SERVICE_NAME ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-service SERVICE_NAME' | sudo tee /etc/sudoers.d/deploy-SERVICE_NAME
+sudo chmod 440 /etc/sudoers.d/deploy-SERVICE_NAME
+```
+
 ## Step 3: Send Key to App Team
 
 Add to their repo:
@@ -111,7 +117,7 @@ Tell them:
 After they push, check:
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="docker ps | grep service-name"
+  --command="sudo docker ps | grep service-name"
 ```
 
 ---
@@ -120,7 +126,13 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
 
 ```bash
 SERVICE_NAME=their-service
+
+# Delete service account
 gcloud iam service-accounts delete deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
+
+# Remove sudoers rule from server
+gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
+  --command="sudo rm /etc/sudoers.d/deploy-$SERVICE_NAME"
 ```
 
 ## Rotating Keys
