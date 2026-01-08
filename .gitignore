@@ -24,3 +24,6 @@ Thumbs.db
 
 # Misc
 nul
+
+# Service account keys (sensitive!)
+keys/

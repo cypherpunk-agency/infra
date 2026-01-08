@@ -14,7 +14,41 @@ Get from app team:
 | Secrets | |
 | Storage | |
 
-## 1. Add to docker-compose.yml
+## 1. Create Service Account (do this first!)
+
+Create immediately so they can set up their CI workflow while we configure server.
+
+```bash
+SERVICE_NAME=their-service
+
+gcloud iam service-accounts create deploy-$SERVICE_NAME \
+  --display-name="Deploy $SERVICE_NAME"
+
+gcloud projects add-iam-policy-binding cyberphunk-agency \
+  --member="serviceAccount:deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com" \
+  --role="roles/iap.tunnelResourceAccessor" --quiet
+
+gcloud projects add-iam-policy-binding cyberphunk-agency \
+  --member="serviceAccount:deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com" \
+  --role="roles/compute.instanceAdmin.v1" --quiet
+
+gcloud iam service-accounts keys create keys/deploy-$SERVICE_NAME-key.json \
+  --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
+```
+
+## 2. Send Them the Key + Instructions
+
+Add key to their repo:
+```bash
+gh secret set GCP_SA_KEY --repo org/repo < keys/deploy-$SERVICE_NAME-key.json
+```
+
+Tell them:
+- Service name: `$SERVICE_NAME`
+- Add deploy job from [containerization-guide.md](containerization-guide.md)
+- **Wait for us to finish server config before pushing**
+
+## 3. Add to docker-compose.yml
 
 SSH to server:
 ```bash
@@ -33,12 +67,12 @@ Edit `/mnt/pd/stack/docker-compose.yml`:
     env_file:
       - /mnt/pd/secrets/service-name.env  # if secrets
     volumes:
-      - /mnt/pd/data/service-name:/app/data  # if storage
+      - /mnt/pd/data/service-name:/data  # if storage
     networks:
       - web
 ```
 
-## 2. Add to Caddyfile
+## 4. Add to Caddyfile
 
 Edit `/mnt/pd/stack/Caddyfile`:
 
@@ -48,12 +82,12 @@ domain.example.com {
 }
 ```
 
-## 3. Create Directories/Secrets
+## 5. Create Directories/Secrets
 
 If storage needed:
 ```bash
 sudo mkdir -p /mnt/pd/data/service-name
-sudo chown 1001:1001 /mnt/pd/data/service-name
+sudo chmod 777 /mnt/pd/data/service-name
 ```
 
 If secrets needed:
@@ -62,57 +96,13 @@ sudo nano /mnt/pd/secrets/service-name.env
 sudo chmod 600 /mnt/pd/secrets/service-name.env
 ```
 
-## 4. Initial Deploy
+## 6. Initial Deploy
 
 ```bash
 cd /mnt/pd/stack
 docker compose pull service-name
 docker compose up -d service-name
 ```
-
-## 5. Create Service Account for Their Repo
-
-Each repo gets its own service account (can revoke individually).
-
-```bash
-# Replace SERVICE_NAME with their service name
-SERVICE_NAME=their-service
-
-# Create service account
-gcloud iam service-accounts create deploy-$SERVICE_NAME \
-  --display-name="Deploy $SERVICE_NAME"
-
-# Grant IAP tunnel access
-gcloud projects add-iam-policy-binding cyberphunk-agency \
-  --member="serviceAccount:deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com" \
-  --role="roles/iap.tunnelResourceAccessor"
-
-# Grant compute access (for SSH)
-gcloud projects add-iam-policy-binding cyberphunk-agency \
-  --member="serviceAccount:deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com" \
-  --role="roles/compute.instanceAdmin.v1"
-
-# Generate key
-gcloud iam service-accounts keys create deploy-$SERVICE_NAME-key.json \
-  --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
-```
-
-## 6. Add Key to Their Repo
-
-Go to their repo → Settings → Secrets → Actions → New repository secret
-
-- Name: `GCP_SA_KEY`
-- Value: Contents of `deploy-$SERVICE_NAME-key.json`
-
-Then delete the local key file:
-```bash
-rm deploy-$SERVICE_NAME-key.json
-```
-
-## 7. Tell Them
-
-- Service name: `service-name`
-- Add deploy job from [containerization-guide.md](containerization-guide.md)
 
 ---
 
@@ -122,14 +112,5 @@ To revoke a repo's deploy access:
 
 ```bash
 SERVICE_NAME=their-service
-
-# Delete all keys
-gcloud iam service-accounts keys list \
-  --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
-
-gcloud iam service-accounts keys delete KEY_ID \
-  --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
-
-# Or delete the whole service account
 gcloud iam service-accounts delete deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
 ```

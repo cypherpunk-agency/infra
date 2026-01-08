@@ -42,7 +42,6 @@ Replace `SERVICE_NAME` with the name we give you.
 ## Setup Process
 
 1. Send us the 5 fields above
-2. We configure the server
-3. We add `GCP_SA_KEY` to your repo secrets
-4. You add the deploy job to your workflow
-5. Push to main → auto-deploys
+2. We send you back: service name + `GCP_SA_KEY` (added to your repo)
+3. You add the deploy job to your workflow
+4. Push to main → auto-deploys
