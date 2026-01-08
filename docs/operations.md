@@ -206,6 +206,17 @@ docker login ghcr.io
 # On GHCR, ensure package is public or VM has access
 ```
 
+### Reload Caddy Config
+
+After editing the Caddyfile, restart the container to apply changes:
+
+```bash
+cd /mnt/pd/stack
+docker compose restart caddy
+```
+
+> **Note:** `caddy reload` won't work because we use `admin off` for security. Always restart the container instead.
+
 ### Caddy Certificate Issues
 
 ```bash

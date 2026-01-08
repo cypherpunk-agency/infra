@@ -80,6 +80,13 @@ domain.example.com {
 }
 ```
 
+**Restart Caddy** to apply config and provision TLS certificate:
+```bash
+cd /mnt/pd/stack && sudo docker compose restart caddy
+```
+
+> **Note:** We use `admin off` in Caddyfile for security, so `caddy reload` won't work. Always restart the container.
+
 **Create directories** (if storage needed):
 ```bash
 sudo mkdir -p /mnt/pd/data/service-name
