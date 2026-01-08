@@ -36,7 +36,8 @@ gcloud compute instances start web-server --zone=us-central1-a
 ├── SPEC.md                      # Original design specification
 ├── docs/
 │   ├── infrastructure.md        # Terraform setup, architecture, costs
-│   ├── deployment-guide.md      # How to deploy new services
+│   ├── containerization-guide.md # For app agents: how to containerize
+│   ├── adding-services.md       # For us: how to add services to infra
 │   └── operations.md            # Maintenance, logs, troubleshooting
 └── terraform/
     ├── main.tf                  # VM, disks, firewall
@@ -47,22 +48,24 @@ gcloud compute instances start web-server --zone=us-central1-a
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Infrastructure](docs/infrastructure.md) | Architecture, Terraform config, costs |
-| [Deployment Guide](docs/deployment-guide.md) | How to deploy new services (for agents) |
-| [Operations](docs/operations.md) | Logs, maintenance, troubleshooting |
+| Document | Audience | Description |
+|----------|----------|-------------|
+| [Containerization Guide](docs/containerization-guide.md) | App agents | How to containerize a project and produce a deploy manifest |
+| [Adding Services](docs/adding-services.md) | Infra operators | How to onboard a service given a manifest |
+| [Infrastructure](docs/infrastructure.md) | Infra operators | Architecture, Terraform config, costs |
+| [Operations](docs/operations.md) | Infra operators | Logs, maintenance, troubleshooting |
 
-## Deploying New Services
+## Workflow
 
-See [docs/deployment-guide.md](docs/deployment-guide.md) for complete instructions.
+**App agent** (working on an application repo):
+1. Read [containerization-guide.md](docs/containerization-guide.md)
+2. Create Dockerfile and CI workflow
+3. Produce `deploy.yaml` manifest
 
-**Summary:**
-1. Create Dockerfile in your app repo
-2. Add GitHub Actions workflow for CI/CD
-3. Add service to `/mnt/pd/stack/docker-compose.yml` on server
-4. Add domain to `/mnt/pd/stack/Caddyfile` on server
-5. Deploy: `docker compose up -d`
+**Infra operator** (adding to this infrastructure):
+1. Receive `deploy.yaml` from app agent
+2. Follow [adding-services.md](docs/adding-services.md)
+3. Deploy and verify
 
 ## Managing Infrastructure
 
