@@ -62,7 +62,49 @@ echo "Deploy complete: $SERVICE_NAME"
 DEPLOYSCRIPT
 
 chmod 755 /usr/local/bin/deploy-service
-echo "Deploy script installed at /usr/local/bin/deploy-service"
+
+# Service status script
+cat > /usr/local/bin/service-status << 'SCRIPT'
+#!/bin/bash
+SERVICE_NAME="$1"
+if [[ -z "$SERVICE_NAME" ]]; then
+    echo "Usage: service-status <service-name>"
+    exit 1
+fi
+echo "=== Container Status ==="
+docker ps --filter "name=$SERVICE_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
+echo ""
+echo "=== Health Check ==="
+docker inspect "$SERVICE_NAME" --format "{{.State.Health.Status}}" 2>/dev/null || echo "No healthcheck configured"
+SCRIPT
+chmod 755 /usr/local/bin/service-status
+
+# Service logs script
+cat > /usr/local/bin/service-logs << 'SCRIPT'
+#!/bin/bash
+SERVICE_NAME="$1"
+LINES="${2:-100}"
+if [[ -z "$SERVICE_NAME" ]]; then
+    echo "Usage: service-logs <service-name> [lines]"
+    exit 1
+fi
+docker logs "$SERVICE_NAME" --tail "$LINES"
+SCRIPT
+chmod 755 /usr/local/bin/service-logs
+
+# Service shell script
+cat > /usr/local/bin/service-shell << 'SCRIPT'
+#!/bin/bash
+SERVICE_NAME="$1"
+if [[ -z "$SERVICE_NAME" ]]; then
+    echo "Usage: service-shell <service-name>"
+    exit 1
+fi
+docker exec -it "$SERVICE_NAME" /bin/sh
+SCRIPT
+chmod 755 /usr/local/bin/service-shell
+
+echo "Service scripts installed"
 
 # -----------------------------------------------------------------------------
 # 2. Mount persistent disk at /mnt/pd

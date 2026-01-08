@@ -92,32 +92,44 @@ sudo nano /mnt/pd/secrets/service-name.env
 sudo chmod 600 /mnt/pd/secrets/service-name.env
 ```
 
-**Grant deploy access** (allows only this service account to deploy only this service):
+**Grant service access** (deploy, status, logs, shell - only for their service):
 ```bash
-echo 'deploy-SERVICE_NAME ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-service SERVICE_NAME' | sudo tee /etc/sudoers.d/deploy-SERVICE_NAME
+echo 'deploy-SERVICE_NAME ALL=(ALL) NOPASSWD: /usr/local/bin/deploy-service SERVICE_NAME
+deploy-SERVICE_NAME ALL=(ALL) NOPASSWD: /usr/local/bin/service-status SERVICE_NAME
+deploy-SERVICE_NAME ALL=(ALL) NOPASSWD: /usr/local/bin/service-logs SERVICE_NAME
+deploy-SERVICE_NAME ALL=(ALL) NOPASSWD: /usr/local/bin/service-logs SERVICE_NAME *
+deploy-SERVICE_NAME ALL=(ALL) NOPASSWD: /usr/local/bin/service-shell SERVICE_NAME' | sudo tee /etc/sudoers.d/deploy-SERVICE_NAME
 sudo chmod 440 /etc/sudoers.d/deploy-SERVICE_NAME
 ```
 
 ## Step 3: Send Key to App Team
 
-Add to their repo:
+Send them:
+- The key file (`keys/deploy-$SERVICE_NAME-key.json`)
+- Their service name
+- Link to [containerization-guide.md](containerization-guide.md)
+
+They will:
+- Add the key to GitHub as `GCP_SA_KEY` secret
+- Use the key locally for debugging (optional)
+
+Or add the secret directly to their repo:
 ```bash
 gh secret set GCP_SA_KEY --repo org/repo < keys/deploy-$SERVICE_NAME-key.json
 ```
 
-Or give them the key file to add manually.
-
-Tell them:
-- Service name: `service-name`
-- Add deploy job from [containerization-guide.md](containerization-guide.md)
-- Ready to deploy!
-
 ## Step 4: Verify First Deploy
 
-After they push, check:
+After they push, verify the container is running and healthy:
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
-  --command="sudo docker ps | grep service-name"
+  --command="sudo /usr/local/bin/service-status service-name"
+```
+
+If unhealthy, check logs:
+```bash
+gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
+  --command="sudo /usr/local/bin/service-logs service-name 50"
 ```
 
 ---
