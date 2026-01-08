@@ -70,39 +70,66 @@ docker compose pull service-name
 docker compose up -d service-name
 ```
 
-## 5. Add GCP_SA_KEY to Their Repo
+## 5. Create Service Account for Their Repo
+
+Each repo gets its own service account (can revoke individually).
+
+```bash
+# Replace SERVICE_NAME with their service name
+SERVICE_NAME=their-service
+
+# Create service account
+gcloud iam service-accounts create deploy-$SERVICE_NAME \
+  --display-name="Deploy $SERVICE_NAME"
+
+# Grant IAP tunnel access
+gcloud projects add-iam-policy-binding cyberphunk-agency \
+  --member="serviceAccount:deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com" \
+  --role="roles/iap.tunnelResourceAccessor"
+
+# Grant compute access (for SSH)
+gcloud projects add-iam-policy-binding cyberphunk-agency \
+  --member="serviceAccount:deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com" \
+  --role="roles/compute.instanceAdmin.v1"
+
+# Generate key
+gcloud iam service-accounts keys create deploy-$SERVICE_NAME-key.json \
+  --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
+```
+
+## 6. Add Key to Their Repo
 
 Go to their repo → Settings → Secrets → Actions → New repository secret
 
 - Name: `GCP_SA_KEY`
-- Value: Contents of service account key JSON
+- Value: Contents of `deploy-$SERVICE_NAME-key.json`
 
-Key location: `github-deploy-key.json` (or create new one - see below)
+Then delete the local key file:
+```bash
+rm deploy-$SERVICE_NAME-key.json
+```
 
-## 6. Tell Them
+## 7. Tell Them
 
 - Service name: `service-name`
 - Add deploy job from [containerization-guide.md](containerization-guide.md)
 
 ---
 
-## Service Account Key
+## Revoking Access
 
-If you need to create the service account:
+To revoke a repo's deploy access:
 
 ```bash
-# Create (one-time)
-gcloud iam service-accounts create github-deploy --display-name="GitHub Deploy"
+SERVICE_NAME=their-service
 
-gcloud projects add-iam-policy-binding cyberphunk-agency \
-  --member="serviceAccount:github-deploy@cyberphunk-agency.iam.gserviceaccount.com" \
-  --role="roles/iap.tunnelResourceAccessor"
+# Delete all keys
+gcloud iam service-accounts keys list \
+  --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
 
-gcloud projects add-iam-policy-binding cyberphunk-agency \
-  --member="serviceAccount:github-deploy@cyberphunk-agency.iam.gserviceaccount.com" \
-  --role="roles/compute.instanceAdmin.v1"
+gcloud iam service-accounts keys delete KEY_ID \
+  --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
 
-# Create key
-gcloud iam service-accounts keys create github-deploy-key.json \
-  --iam-account=github-deploy@cyberphunk-agency.iam.gserviceaccount.com
+# Or delete the whole service account
+gcloud iam service-accounts delete deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
 ```
