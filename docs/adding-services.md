@@ -1,22 +1,34 @@
 # Adding Services
 
-Checklist for onboarding a new service.
+## Process Overview
+
+```
+App Team                              Us
+    │                                  │
+    ├─ Send 5 fields ─────────────────►│
+    │                                  ├─ Create service account + key
+    │                                  ├─ Configure server
+    │◄─────────── GCP_SA_KEY + service name
+    │                                  │
+    ├─ Add deploy job to workflow      │
+    ├─ Push to main ──────────────────►│ (auto-deploys)
+```
 
 ## Required Info
 
 Get from app team:
 
-| Field | Value |
-|-------|-------|
+| Field | Example |
+|-------|---------|
 | Image | `ghcr.io/org/repo:prod` |
-| Port | |
-| Domain | |
-| Secrets | |
-| Storage | |
+| Port | `3000` |
+| Domain | `app.example.com` |
+| Secrets | `API_KEY`, `DB_URL` (or none) |
+| Storage | `/data` (or none) |
 
-## 1. Create Service Account (do this first!)
+---
 
-Create immediately so they can set up their CI workflow while we configure server.
+## Step 1: Create Service Account + Key
 
 ```bash
 SERVICE_NAME=their-service
@@ -36,34 +48,19 @@ gcloud iam service-accounts keys create keys/deploy-$SERVICE_NAME-key.json \
   --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
 ```
 
-## 2. Send Them the Key + Instructions
-
-Add key to their repo:
-```bash
-gh secret set GCP_SA_KEY --repo org/repo < keys/deploy-$SERVICE_NAME-key.json
-```
-
-Tell them:
-- Service name: `$SERVICE_NAME`
-- Add deploy job from [containerization-guide.md](containerization-guide.md)
-- **Wait for us to finish server config before pushing**
-
-## 3. Add to docker-compose.yml
+## Step 2: Configure Server
 
 SSH to server:
 ```bash
 gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap
 ```
 
-Edit `/mnt/pd/stack/docker-compose.yml`:
-
+**Add to docker-compose.yml** (`/mnt/pd/stack/docker-compose.yml`):
 ```yaml
   service-name:
     image: ghcr.io/org/repo:prod
     container_name: service-name
     restart: unless-stopped
-    environment:
-      - NODE_ENV=production
     env_file:
       - /mnt/pd/secrets/service-name.env  # if secrets
     volumes:
@@ -72,45 +69,74 @@ Edit `/mnt/pd/stack/docker-compose.yml`:
       - web
 ```
 
-## 4. Add to Caddyfile
-
-Edit `/mnt/pd/stack/Caddyfile`:
-
+**Add to Caddyfile** (`/mnt/pd/stack/Caddyfile`):
 ```
 domain.example.com {
     reverse_proxy service-name:PORT
 }
 ```
 
-## 5. Create Directories/Secrets
-
-If storage needed:
+**Create directories** (if storage needed):
 ```bash
 sudo mkdir -p /mnt/pd/data/service-name
 sudo chmod 777 /mnt/pd/data/service-name
 ```
 
-If secrets needed:
+**Create secrets** (if needed):
 ```bash
 sudo nano /mnt/pd/secrets/service-name.env
 sudo chmod 600 /mnt/pd/secrets/service-name.env
 ```
 
-## 6. Initial Deploy
+## Step 3: Send Key to App Team
 
+Add to their repo:
 ```bash
-cd /mnt/pd/stack
-docker compose pull service-name
-docker compose up -d service-name
+gh secret set GCP_SA_KEY --repo org/repo < keys/deploy-$SERVICE_NAME-key.json
+```
+
+Or give them the key file to add manually.
+
+Tell them:
+- Service name: `service-name`
+- Add deploy job from [containerization-guide.md](containerization-guide.md)
+- Ready to deploy!
+
+## Step 4: Verify First Deploy
+
+After they push, check:
+```bash
+gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
+  --command="docker ps | grep service-name"
 ```
 
 ---
 
 ## Revoking Access
 
-To revoke a repo's deploy access:
-
 ```bash
 SERVICE_NAME=their-service
 gcloud iam service-accounts delete deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
+```
+
+## Rotating Keys
+
+If a key is compromised:
+```bash
+SERVICE_NAME=their-service
+
+# List keys
+gcloud iam service-accounts keys list \
+  --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
+
+# Delete old key
+gcloud iam service-accounts keys delete KEY_ID \
+  --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
+
+# Create new key
+gcloud iam service-accounts keys create keys/deploy-$SERVICE_NAME-key.json \
+  --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
+
+# Update their repo secret
+gh secret set GCP_SA_KEY --repo org/repo < keys/deploy-$SERVICE_NAME-key.json
 ```
