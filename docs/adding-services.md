@@ -44,6 +44,10 @@ gcloud projects add-iam-policy-binding cyberphunk-agency \
   --member="serviceAccount:deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com" \
   --role="roles/compute.instanceAdmin.v1" --quiet
 
+gcloud projects add-iam-policy-binding cyberphunk-agency \
+  --member="serviceAccount:deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser" --quiet
+
 gcloud iam service-accounts keys create keys/deploy-$SERVICE_NAME-key.json \
   --iam-account=deploy-$SERVICE_NAME@cyberphunk-agency.iam.gserviceaccount.com
 ```
