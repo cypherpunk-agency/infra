@@ -44,10 +44,8 @@ resource "google_compute_instance" "vm" {
   }
 
   scheduling {
-    preemptible                 = true
-    automatic_restart           = false
-    provisioning_model          = "SPOT"
-    instance_termination_action = "STOP"
+    automatic_restart   = true
+    on_host_maintenance = "MIGRATE"
   }
 
   attached_disk {

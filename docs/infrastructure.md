@@ -40,7 +40,7 @@ This document describes the GCP infrastructure managed by Terraform.
 | Region/Zone | `us-central1-a` |
 | VM Name | `web-server` |
 | Machine Type | `e2-small` (2 shared vCPU, 2GB RAM) |
-| Provisioning | Spot/Preemptible |
+| Provisioning | Standard (always-on) |
 | Boot Disk | 30GB pd-standard, Ubuntu 24.04 LTS |
 | Data Disk | 20GB pd-standard at `/mnt/pd` |
 | External IP | `34.67.186.58` (static) |
@@ -114,15 +114,15 @@ Add new `google_compute_firewall` resource in `main.tf`.
 
 ## Cost Estimate
 
-With Spot pricing in us-central1:
+With standard (on-demand) pricing in us-central1:
 
 | Resource | Monthly Cost |
 |----------|--------------|
-| e2-small (spot) | ~$3-5 |
+| e2-small (standard) | ~$13 |
 | 30GB boot disk | ~$1.20 |
 | 20GB data disk | ~$0.80 |
 | Static IP (in use) | Free |
-| **Total** | **~$5-7** |
+| **Total** | **~$15** |
 
 ## Security
 
