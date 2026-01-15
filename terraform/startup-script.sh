@@ -107,6 +107,34 @@ chmod 755 /usr/local/bin/service-shell
 echo "Service scripts installed"
 
 # -----------------------------------------------------------------------------
+# 1c. Install Trivy for container image scanning
+# -----------------------------------------------------------------------------
+if ! command -v trivy &> /dev/null; then
+    echo "Installing Trivy..."
+    curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+    echo "Trivy installed successfully"
+else
+    echo "Trivy already installed"
+fi
+
+# Create image scan helper script
+cat > /usr/local/bin/scan-image << 'SCANSCRIPT'
+#!/bin/bash
+if [ -z "$1" ]; then
+    echo "Usage: scan-image <image-name>"
+    echo "Example: scan-image caddy:2-alpine"
+    echo "Example: scan-image ghcr.io/org/repo:prod"
+    exit 1
+fi
+
+echo "Scanning $1 for vulnerabilities..."
+trivy image --severity HIGH,CRITICAL "$1"
+SCANSCRIPT
+chmod +x /usr/local/bin/scan-image
+
+echo "Trivy scan script installed"
+
+# -----------------------------------------------------------------------------
 # 2. Mount persistent disk at /mnt/pd
 # -----------------------------------------------------------------------------
 MOUNT_POINT="/mnt/pd"
@@ -155,9 +183,26 @@ if [ ! -f "$COMPOSE_FILE" ]; then
     cat > "$MOUNT_POINT/stack/Caddyfile" << 'EOF'
 {
     admin off
+    servers {
+        protocols h1 h2 h3
+    }
+}
+
+# Security headers snippet
+(security_headers) {
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    }
+    encode gzip zstd
 }
 
 cypherpunk.agency {
+    import security_headers
     root * /static
     file_server
 }
@@ -180,6 +225,14 @@ services:
       - caddy_config:/config
     networks:
       - web
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
 
 networks:
   web:

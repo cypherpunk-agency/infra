@@ -28,6 +28,109 @@ After your first image push, the package will be private by default. To make it 
 5. Scroll to **Danger Zone**
 6. Click **Change visibility** → Select **Public** → Confirm
 
+## Security Best Practices
+
+### 1. Scan Your Images
+
+Before deploying, scan your images for vulnerabilities:
+
+```bash
+# Using Trivy (recommended)
+trivy image ghcr.io/your-org/your-repo:prod
+
+# Fix any HIGH or CRITICAL vulnerabilities before deploying
+```
+
+### 2. Don't Store Secrets in Images
+
+**Never** bake secrets into your Docker image:
+- ❌ No hardcoded API keys
+- ❌ No database passwords in Dockerfile
+- ❌ No `.env` files in image
+
+Instead:
+- ✅ Use environment variables (we provide via secrets)
+- ✅ Request secrets during onboarding
+- ✅ Keep secrets separate from code
+
+### 3. Use Official Base Images
+
+Use official images from trusted sources:
+```dockerfile
+# Good
+FROM node:20-alpine
+FROM python:3.12-slim
+
+# Avoid
+FROM random-user/node  # Unknown source
+```
+
+### 4. Run as Non-Root User
+
+Create and use a non-root user in your Dockerfile:
+
+```dockerfile
+# Create user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Switch to user
+USER appuser
+
+# Your app runs as appuser, not root
+CMD ["node", "server.js"]
+```
+
+### 5. Keep Dependencies Updated
+
+Regularly update your dependencies to get security patches:
+
+```bash
+# Node.js
+npm audit
+npm audit fix
+
+# Python
+pip list --outdated
+pip install --upgrade package-name
+
+# Run these regularly!
+```
+
+### 6. Define Resource Limits
+
+We'll add resource limits to prevent your service from exhausting VM resources, but you can help by:
+- Testing your app's memory usage under load
+- Reporting expected resource needs (helps us set appropriate limits)
+- Optimizing memory leaks before deploying
+
+### 7. Implement Health Checks
+
+Add a `/health` or `/healthz` endpoint:
+
+```javascript
+// Express example
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy' });
+});
+```
+
+This helps us:
+- Detect when your service is unhealthy
+- Restart automatically if needed
+- Monitor uptime
+
+### 8. Keep Secrets Secure Locally
+
+**Never commit the GCP service account key to git!**
+
+Add to your `.gitignore`:
+```
+*-key.json
+*.json
+```
+
+Use a secure password manager to store the key.
+
 ## Add to Your Workflow
 
 After we configure your service, add this deploy job:

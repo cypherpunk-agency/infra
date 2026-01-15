@@ -28,6 +28,63 @@ Get from app team:
 
 ---
 
+## Security Requirements
+
+**All services must include these security configurations:**
+
+### 1. Container Image Scanning
+
+Before adding a service, scan the image for vulnerabilities:
+
+```bash
+# Scan image for HIGH/CRITICAL vulnerabilities
+scan-image ghcr.io/org/repo:prod
+
+# Review output and ensure no critical issues
+```
+
+### 2. Resource Limits (Required)
+
+All services must define CPU and memory limits to prevent resource exhaustion:
+
+```yaml
+deploy:
+  resources:
+    limits:
+      memory: 512M        # Adjust based on service needs
+      cpus: '0.5'         # Adjust based on service needs
+    reservations:
+      memory: 256M        # Minimum guaranteed memory
+      cpus: '0.25'        # Minimum guaranteed CPU
+```
+
+### 3. Security Headers (Automatic)
+
+The Caddyfile template automatically includes security headers for all domains. Your service will inherit:
+- HSTS, CSP, X-Frame-Options, X-Content-Type-Options
+- gzip/zstd compression
+
+### 4. Optional Security Hardening
+
+For services that support it, consider adding:
+
+```yaml
+security_opt:
+  - no-new-privileges:true
+cap_drop:
+  - ALL
+cap_add:
+  - NET_BIND_SERVICE  # Only if service needs to bind to privileged ports
+```
+
+### 5. Least Privilege
+
+- Request only the secrets your service needs
+- Use read-only volume mounts where possible (`:ro` suffix)
+- Run container as non-root user when possible
+
+---
+
 ## Step 1: Create Service Account + Key
 
 ```bash
@@ -71,11 +128,20 @@ gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap
       - /mnt/pd/data/service-name:/data  # if storage
     networks:
       - web
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
 ```
 
 **Add to Caddyfile** (`/mnt/pd/stack/Caddyfile`):
-```
+```caddy
 domain.example.com {
+    import security_headers  # Auto security headers
     reverse_proxy service-name:PORT
 }
 ```

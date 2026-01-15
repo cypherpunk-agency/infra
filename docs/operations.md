@@ -304,6 +304,92 @@ Use Google Cloud Monitoring to create uptime checks:
 2. Create check for your domain
 3. Configure alerting (email, Slack, etc.)
 
+## Security Operations
+
+### Container Image Scanning
+
+Scan container images for vulnerabilities using Trivy:
+
+```bash
+# Scan a specific image
+scan-image caddy:2-alpine
+
+# Scan all running containers
+docker ps --format "{{.Image}}" | xargs -I {} scan-image {}
+
+# Scan before deploying
+scan-image ghcr.io/org/repo:prod
+
+# Scan with full details (not just HIGH/CRITICAL)
+trivy image ghcr.io/org/repo:prod
+```
+
+### Verify Security Headers
+
+Check that security headers are present on your sites:
+
+```bash
+# Check headers
+curl -I https://cypherpunk.agency
+
+# Look for:
+# - strict-transport-security
+# - x-content-type-options
+# - x-frame-options
+# - content-security-policy
+# - referrer-policy
+```
+
+### Verify Resource Limits
+
+Check that resource limits are enforced:
+
+```bash
+# View resource limits and usage
+docker stats
+
+# Check specific container config
+docker inspect caddy | grep -A 10 "Memory\|Cpu"
+```
+
+### Check Service Account Keys Age
+
+List keys to identify old ones that should be rotated:
+
+```bash
+# List keys for a service account
+gcloud iam service-accounts keys list \
+  --iam-account=deploy-myservice@cyberphunk-agency.iam.gserviceaccount.com
+
+# Keys older than 90 days should be rotated
+```
+
+### Audit Logs
+
+Review recent actions by service accounts:
+
+```bash
+# View recent compute operations
+gcloud logging read "protoPayload.methodName=~\"compute.*\"" \
+  --limit 50 \
+  --format="table(timestamp,protoPayload.authenticationInfo.principalEmail,protoPayload.methodName)"
+
+# View specific service account activity
+gcloud logging read "protoPayload.authenticationInfo.principalEmail=deploy-myservice@cyberphunk-agency.iam.gserviceaccount.com" \
+  --limit 20
+```
+
+### Security Incident Response
+
+If you suspect a security issue, see the [Security Runbook](./security.md#incident-response) for detailed procedures.
+
+Quick checklist:
+1. Isolate affected container: `docker compose stop <service>`
+2. Preserve logs: `docker logs <service> > incident-logs.txt`
+3. Check for unauthorized access: Review audit logs
+4. Rotate compromised credentials immediately
+5. Document and report incident
+
 ## Security Updates
 
 ### Update System Packages

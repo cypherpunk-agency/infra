@@ -28,3 +28,4 @@ nul
 
 # Service account keys (sensitive!)
 keys/
+docs/security-improvements.md
