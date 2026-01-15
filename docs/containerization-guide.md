@@ -80,7 +80,101 @@ USER appuser
 CMD ["node", "server.js"]
 ```
 
-### 5. Keep Dependencies Updated
+### 5. Use Read-Only Filesystem (Optional)
+
+For stateless applications, use a read-only root filesystem for defense-in-depth:
+
+```yaml
+services:
+  app:
+    read_only: true
+    tmpfs:
+      - /tmp        # Writable temp space
+      - /var/run    # For PID files, sockets
+    volumes:
+      - /mnt/pd/data/app:/data  # Persistent data (writable)
+```
+
+**Benefits:**
+- **Immutability**: Container can't modify its own code/binaries
+- **Attack prevention**: Malware can't write backdoors to filesystem
+- **Compliance**: Some security standards require read-only containers
+
+**When to use:**
+- Stateless applications (APIs, web servers)
+- Apps that only write to `/tmp` or mounted volumes
+- When your app doesn't need to modify itself at runtime
+
+**When NOT to use:**
+- Apps that write config files to their own directory
+- Package managers that need to write to system paths
+- Applications that generate code at runtime
+
+**Testing:**
+
+```bash
+# Test if your app works read-only
+docker run --read-only --tmpfs /tmp your-image
+
+# If it fails, add more tmpfs mounts:
+docker run --read-only --tmpfs /tmp --tmpfs /var/cache your-image
+```
+
+**Common tmpfs mounts needed:**
+- `/tmp` - Standard temporary files
+- `/var/run` - PID files, sockets
+- `/var/cache` - Application caches
+- `/home/user/.cache` - User-specific caches (Node.js, Python, etc.)
+
+### 7. Use Image Digests for Immutability
+
+Instead of mutable tags like `:prod`, use immutable digests to ensure the exact same image is deployed:
+
+```yaml
+# ❌ Mutable tag - can be overwritten
+image: ghcr.io/your-org/your-repo:prod
+
+# ✅ Immutable digest - locked to specific build
+image: ghcr.io/your-org/your-repo@sha256:abc123def456...
+```
+
+**How to get the digest:**
+
+```bash
+# Pull the image
+docker pull ghcr.io/your-org/your-repo:prod
+
+# Get the digest
+docker inspect ghcr.io/your-org/your-repo:prod --format='{{index .RepoDigests 0}}'
+# Output: ghcr.io/your-org/your-repo@sha256:abc123...
+
+# Use this in your docker-compose.yml
+```
+
+**Benefits:**
+- **Immutability**: Someone can't push malicious code with the same `:prod` tag
+- **Reproducibility**: Exact same image deployed every time
+- **Audit trail**: Know exactly which build is running
+
+**CI/CD Integration:**
+
+```yaml
+# GitHub Actions example
+- name: Get image digest
+  id: digest
+  run: |
+    IMAGE="ghcr.io/${{ github.repository }}:prod"
+    docker pull $IMAGE
+    DIGEST=$(docker inspect $IMAGE --format='{{index .RepoDigests 0}}')
+    echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+- name: Deploy with digest
+  run: |
+    gcloud compute ssh web-server --zone=us-central1-a --tunnel-through-iap \
+      --command="sudo /usr/local/bin/deploy-service ${{ steps.digest.outputs.digest }}"
+```
+
+### 8. Keep Dependencies Updated
 
 Regularly update your dependencies to get security patches:
 
@@ -96,14 +190,14 @@ pip install --upgrade package-name
 # Run these regularly!
 ```
 
-### 6. Define Resource Limits
+### 9. Define Resource Limits
 
 We'll add resource limits to prevent your service from exhausting VM resources, but you can help by:
 - Testing your app's memory usage under load
 - Reporting expected resource needs (helps us set appropriate limits)
 - Optimizing memory leaks before deploying
 
-### 7. Implement Health Checks
+### 10. Implement Health Checks
 
 Add a `/health` or `/healthz` endpoint:
 
@@ -119,7 +213,7 @@ This helps us:
 - Restart automatically if needed
 - Monitor uptime
 
-### 8. Keep Secrets Secure Locally
+### 11. Keep Secrets Secure Locally
 
 **Never commit the GCP service account key to git!**
 

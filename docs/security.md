@@ -211,6 +211,9 @@ docker inspect caddy | grep -A 10 CapDrop
 5. **Define Health Checks**: Add `/healthz` endpoint for monitoring
 6. **Set Resource Limits**: Define appropriate CPU/memory limits in docker-compose.yml
 7. **Use Non-Root User**: Run containers as non-root user when possible
+8. **Use Image Digests**: Pin to `@sha256:...` digests instead of mutable `:prod` tags for immutability
+9. **Consider Read-Only Filesystem**: Use `read_only: true` for stateless apps to prevent runtime modification
+10. **Use Proper Directory Permissions**: Set `chmod 755` (not `777`) and match container UID ownership
 
 ### For All Users
 
@@ -250,7 +253,7 @@ Include these security settings in your service definition:
 ```yaml
 services:
   myservice:
-    image: ghcr.io/org/myservice:prod
+    image: ghcr.io/org/myservice@sha256:abc123...  # SECURITY: Use digest, not tag
     container_name: myservice
     restart: unless-stopped
     env_file:
@@ -275,6 +278,35 @@ services:
       - ALL
     cap_add:
       - NET_BIND_SERVICE  # Only if needed
+    # SECURITY: Read-only filesystem (if stateless)
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
+```
+
+**Network Segmentation (Optional):**
+
+For multi-tier services (e.g., app + database), use dedicated networks:
+
+```yaml
+networks:
+  frontend:  # Public-facing (Caddy + app)
+  backend:   # Internal only (app + database)
+
+services:
+  app:
+    networks:
+      - frontend  # Caddy can reach
+      - backend   # Database can reach
+
+  database:
+    networks:
+      - backend   # Not exposed to Caddy
+
+  caddy:
+    networks:
+      - frontend  # Can reach app, not database
 ```
 
 ### 3. Caddyfile Configuration
@@ -298,7 +330,27 @@ scan-image ghcr.io/org/myservice:prod
 # Fix issues before deploying to production
 ```
 
-### 5. Create Sudoers Rule
+### 5. Set Proper Directory Permissions
+
+If your service needs persistent storage:
+
+```bash
+# Create directory
+sudo mkdir -p /mnt/pd/data/myservice
+
+# Set secure permissions (755, not 777)
+sudo chmod 755 /mnt/pd/data/myservice
+
+# Match container UID (typically 1000 for non-root containers)
+sudo chown -R 1000:1000 /mnt/pd/data/myservice
+```
+
+**Why this matters:**
+- `chmod 777` is world-writable (any user/container can modify)
+- `chmod 755` allows only owner to write (better isolation)
+- Matching container UID prevents permission errors
+
+### 6. Create Sudoers Rule
 
 ```bash
 # SSH to VM

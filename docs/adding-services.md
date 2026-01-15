@@ -64,7 +64,41 @@ The Caddyfile template automatically includes security headers for all domains. 
 - HSTS, CSP, X-Frame-Options, X-Content-Type-Options
 - gzip/zstd compression
 
-### 4. Optional Security Hardening
+### 4. Network Segmentation (Optional)
+
+For better isolation, use per-service networks instead of the shared `web` network:
+
+```yaml
+networks:
+  frontend:  # Public-facing (Caddy + app)
+  backend:   # Internal only (app + database)
+
+services:
+  app:
+    networks:
+      - frontend  # Accessible from Caddy
+      - backend   # Can talk to database
+
+  database:
+    networks:
+      - backend   # Not accessible from Caddy
+
+  caddy:
+    networks:
+      - frontend  # Can reach app, not database
+```
+
+**Benefits:**
+- Database isolated from internet-facing proxy
+- Lateral movement prevention
+- Explicit service-to-service trust
+
+**When to use:**
+- Services with databases or backend components
+- Multi-tier applications
+- When defense-in-depth is required
+
+### 5. Optional Security Hardening
 
 For services that support it, consider adding:
 
@@ -77,11 +111,13 @@ cap_add:
   - NET_BIND_SERVICE  # Only if service needs to bind to privileged ports
 ```
 
-### 5. Least Privilege
+### 6. Least Privilege
 
 - Request only the secrets your service needs
 - Use read-only volume mounts where possible (`:ro` suffix)
 - Run container as non-root user when possible
+- Use `chmod 755` for data directories (never `777`)
+- Set proper ownership to match container UID (typically `1000:1000`)
 
 ---
 
@@ -156,7 +192,8 @@ cd /mnt/pd/stack && sudo docker compose restart caddy
 **Create directories** (if storage needed):
 ```bash
 sudo mkdir -p /mnt/pd/data/service-name
-sudo chmod 777 /mnt/pd/data/service-name
+sudo chmod 755 /mnt/pd/data/service-name
+sudo chown -R 1000:1000 /mnt/pd/data/service-name  # Match container UID
 ```
 
 **Create secrets** (if needed):
