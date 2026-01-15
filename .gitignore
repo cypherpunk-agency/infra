@@ -21,6 +21,7 @@ Thumbs.db
 
 # Claude Code
 .claude/
+tmpclaude-*-cwd
 
 # Misc
 nul
